@@ -32,4 +32,8 @@ impl pallet_utility::WeightInfo for WeightInfo {
 	fn as_derivative() -> Weight {
 		(4086000 as Weight)
 	}
+
+	fn batch_all(c: u32) -> u64 {
+		todo!()
+	}
 }
