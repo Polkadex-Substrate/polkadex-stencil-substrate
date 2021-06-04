@@ -3,7 +3,7 @@ use node_template_runtime::{
 	AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, StakerStatus,
 	SessionConfig, StakingConfig, opaque::SessionKeys, Balance,
-	currency::DOLLARS, ImOnlineConfig, DemocracyConfig, ElectionsConfig,
+	constants::currency::DOLLARS, ImOnlineConfig, ElectionsConfig,
 	TechnicalCommitteeConfig, CouncilConfig,
 };
 use sp_consensus_babe::AuthorityId as BabeId;
