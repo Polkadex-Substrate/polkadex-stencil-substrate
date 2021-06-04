@@ -27,7 +27,6 @@ use node_template_runtime::RuntimeApi;
 use sc_service::{
     config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager,
 };
-use sp_inherents::InherentDataProvider; // DO we really need this? added by GJ
 use sc_network::{Event, NetworkService};
 use sp_runtime::traits::Block as BlockT;
 use futures::prelude::*;

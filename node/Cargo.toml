@@ -32,7 +32,9 @@ pallet-transaction-payment-rpc = { version = '3.0.0', git = "https://github.com/
 sc-basic-authorship = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 sc-cli = { features = ['wasmtime'], version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 sc-client-api = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
+sc-chain-spec = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sc-consensus = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
+sc-sync-state-rpc = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 sc-consensus-slots = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 sc-consensus-uncles = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 sc-authority-discovery = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }

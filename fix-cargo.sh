@@ -1,0 +1,1 @@
+cargo update -p sp-std --precise e5437efefa82bd8eb567f1245f0a7443ac4e4fe7
