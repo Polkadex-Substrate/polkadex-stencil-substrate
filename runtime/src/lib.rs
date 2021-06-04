@@ -386,8 +386,6 @@ impl pallet_balances::Config for Runtime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
 }
 
 parameter_types! {
@@ -751,7 +749,6 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Fallback = Fallback;
 	type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
 	type BenchmarkingConfig = ();
-	type ForceOrigin = EnsureRootOrHalfCouncil;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

@@ -16,7 +16,7 @@ use sc_consensus_epochs::SharedEpochChanges;
 use sc_finality_grandpa::{
 	SharedVoterState, SharedAuthoritySet, FinalityProofProvider, GrandpaJustificationStream
 };
-use sc_keystore::KeyStorePtr;
+use sp_keystore::SyncCryptoStorePtr;
 use sc_rpc::SubscriptionTaskExecutor;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
@@ -25,6 +25,7 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 pub use sc_rpc_api::DenyUnsafe;
 use sp_transaction_pool::TransactionPool;
+use sc_consensus_babe_rpc::BabeApi;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -33,7 +34,7 @@ pub struct BabeDeps {
 	/// BABE pending epoch changes.
 	pub shared_epoch_changes: SharedEpochChanges<Block, Epoch>,
 	/// The keystore that manages the keys of the node.
-	pub keystore: KeyStorePtr,
+	pub keystore: SyncCryptoStorePtr,
 }
 
 /// Extra dependencies for GRANDPA
@@ -58,6 +59,8 @@ pub struct FullDeps<C, P, SC, B> {
 	pub pool: Arc<P>,
 	/// The SelectChain Strategy
 	pub select_chain: SC,
+	/// A copy of the chain spec.
+	pub chain_spec: Box<dyn sc_chain_spec::ChainSpec>,
 	/// Whether to deny unsafe calls
 	pub deny_unsafe: DenyUnsafe,
 	/// BABE specific dependencies.

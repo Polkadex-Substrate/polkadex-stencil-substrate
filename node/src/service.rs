@@ -22,24 +22,37 @@
 
 use std::sync::Arc;
 use sc_consensus_babe;
-use node_primitives::Block;
-use node_runtime::RuntimeApi;
+use node_template_runtime::Block;
+use node_template_runtime::RuntimeApi;
 use sc_service::{
     config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager,
 };
+use sp_inherents::InherentDataProvider; // DO we really need this? added by GJ
 use sc_network::{Event, NetworkService};
 use sp_runtime::traits::Block as BlockT;
 use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use node_executor::Executor;
+
+pub use sc_executor::NativeExecutor;
+use sc_executor::native_executor_instance;
+
+// Declare an instance of the native executor named `Executor`. Include the wasm binary as the
+// equivalent wasm code.
+native_executor_instance!(
+	pub Executor,
+	node_template_runtime::api::dispatch,
+	node_template_runtime::native_version,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
+
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_consensus_babe::SlotProportion;
+use crate::rpc;
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-type FullGrandpaBlockImport =
-grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
+type FullGrandpaBlockImport = sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 type LightClient = sc_service::TLightClient<Block, RuntimeApi, Executor>;
 
 pub fn new_partial(
@@ -50,15 +63,15 @@ pub fn new_partial(
     sc_transaction_pool::FullPool<Block, FullClient>,
     (
         impl Fn(
-            node_rpc::DenyUnsafe,
+            rpc::DenyUnsafe,
             sc_rpc::SubscriptionTaskExecutor,
-        ) -> node_rpc::IoHandler,
+        ) -> rpc::IoHandler,
         (
             sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
-            grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
+            sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
             sc_consensus_babe::BabeLink<Block>,
         ),
-        grandpa::SharedVoterState,
+        sc_finality_grandpa::SharedVoterState,
         Option<Telemetry>,
     )
 >, ServiceError> {
@@ -94,7 +107,7 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let (grandpa_block_import, grandpa_link) = grandpa::block_import(
+    let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
         client.clone(),
         &(client.clone() as Arc<_>),
         select_chain.clone(),
@@ -144,10 +157,10 @@ pub fn new_partial(
 
         let justification_stream = grandpa_link.justification_stream();
         let shared_authority_set = grandpa_link.shared_authority_set().clone();
-        let shared_voter_state = grandpa::SharedVoterState::empty();
+        let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
         let rpc_setup = shared_voter_state.clone();
 
-        let finality_proof_provider = grandpa::FinalityProofProvider::new_for_service(
+        let finality_proof_provider = sc_finality_grandpa::FinalityProofProvider::new_for_service(
             backend.clone(),
             Some(shared_authority_set.clone()),
         );
@@ -162,18 +175,18 @@ pub fn new_partial(
         let chain_spec = config.chain_spec.cloned_box();
 
         let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
-            let deps = node_rpc::FullDeps {
+            let deps = rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
                 select_chain: select_chain.clone(),
                 chain_spec: chain_spec.cloned_box(),
                 deny_unsafe,
-                babe: node_rpc::BabeDeps {
+                babe: rpc::BabeDeps {
                     babe_config: babe_config.clone(),
                     shared_epoch_changes: shared_epoch_changes.clone(),
                     keystore: keystore.clone(),
                 },
-                grandpa: node_rpc::GrandpaDeps {
+                grandpa: rpc::GrandpaDeps {
                     shared_voter_state: shared_voter_state.clone(),
                     shared_authority_set: shared_authority_set.clone(),
                     justification_stream: justification_stream.clone(),
@@ -182,7 +195,7 @@ pub fn new_partial(
                 },
             };
 
-            node_rpc::create_full(deps)
+            rpc::create_full(deps)
         };
 
         (rpc_extensions_builder, rpc_setup)
@@ -229,7 +242,7 @@ pub fn new_full_base(
     let shared_voter_state = rpc_setup;
     let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 
-    config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
+    config.network.extra_sets.push(sc_finality_grandpa::grandpa_peers_set_config());
 
     #[cfg(feature = "cli")]
         config.network.request_response_protocols.push(
@@ -372,7 +385,7 @@ pub fn new_full_base(
         None
     };
 
-    let config = grandpa::Config {
+    let config = sc_finality_grandpa::Config {
         // FIXME #1578 make this available through chainspec
         gossip_duration: std::time::Duration::from_millis(333),
         justification_period: 512,
@@ -390,12 +403,12 @@ pub fn new_full_base(
         // and vote data availability than the observer. The observer has not
         // been tested extensively yet and having most nodes in a network run it
         // could lead to finality stalls.
-        let grandpa_config = grandpa::GrandpaParams {
+        let grandpa_config = sc_finality_grandpa::GrandpaParams {
             config,
             link: grandpa_link,
             network: network.clone(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
-            voting_rule: grandpa::VotingRulesBuilder::default().build(),
+            voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
             prometheus_registry,
             shared_voter_state,
         };
@@ -404,7 +417,7 @@ pub fn new_full_base(
         // if it fails we take down the service with it.
         task_manager.spawn_essential_handle().spawn_blocking(
             "grandpa-voter",
-            grandpa::run_grandpa_voter(grandpa_config)?
+            sc_finality_grandpa::run_grandpa_voter(grandpa_config)?
         );
     }
 
@@ -463,7 +476,7 @@ pub fn new_light_base(
             telemetry
         });
 
-    config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
+    config.network.extra_sets.push(sc_finality_grandpa::grandpa_peers_set_config());
 
     let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
@@ -475,7 +488,7 @@ pub fn new_light_base(
         on_demand.clone(),
     ));
 
-    let (grandpa_block_import, grandpa_link) = grandpa::block_import(
+    let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
         client.clone(),
         &(client.clone() as Arc<_>),
         select_chain.clone(),
@@ -527,25 +540,25 @@ pub fn new_light_base(
             block_announce_validator_builder: None,
         })?;
 
-    let enable_grandpa = !config.disable_grandpa;
-    if enable_grandpa {
-        let name = config.network.node_name.clone();
-
-        let config = grandpa::Config {
-            gossip_duration: std::time::Duration::from_millis(333),
-            justification_period: 512,
-            name: Some(name),
-            observer_enabled: false,
-            keystore: None,
-            local_role: config.role.clone(),
-            telemetry: telemetry.as_ref().map(|x| x.handle()),
-        };
-
-        task_manager.spawn_handle().spawn_blocking(
-            "grandpa-observer",
-            grandpa::run_grandpa_observer(config, grandpa_link, network.clone())?,
-        );
-    }
+    // let enable_grandpa = !config.disable_grandpa;
+    // if enable_grandpa {
+    //     let name = config.network.node_name.clone();
+    //
+    //     let config = sc_finality_grandpa::Config {
+    //         gossip_duration: std::time::Duration::from_millis(333),
+    //         justification_period: 512,
+    //         name: Some(name),
+    //         observer_enabled: false,
+    //         keystore: None,
+    //         local_role: config.role.clone(),
+    //         telemetry: telemetry.as_ref().map(|x| x.handle()),
+    //     };
+    //
+    //     task_manager.spawn_handle().spawn_blocking(
+    //         "grandpa-observer",
+    //         sc_finality_grandpa::run_grandpa_observer(config, grandpa_link, network.clone())?,
+    //     );
+    // }
 
     if config.offchain_worker.enabled {
         sc_service::build_offchain_workers(
@@ -556,14 +569,14 @@ pub fn new_light_base(
         );
     }
 
-    let light_deps = node_rpc::LightDeps {
+    let light_deps = rpc::LightDeps {
         remote_blockchain: backend.remote_blockchain(),
         fetcher: on_demand.clone(),
         client: client.clone(),
         pool: transaction_pool.clone(),
     };
 
-    let rpc_extensions = node_rpc::create_light(light_deps);
+    let rpc_extensions = rpc::create_light(light_deps);
 
     let rpc_handlers =
         sc_service::spawn_tasks(sc_service::SpawnTasksParams {
@@ -606,9 +619,9 @@ mod tests {
     use sp_consensus::{
         Environment, Proposer, BlockImportParams, BlockOrigin, ForkChoiceStrategy, BlockImport,
     };
-    use node_primitives::{Block, DigestItem, Signature};
-    use node_runtime::{BalancesCall, Call, UncheckedExtrinsic, Address};
-    use node_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
+    use node_template_runtime::{Block, DigestItem, Signature};
+    use node_template_runtime::{BalancesCall, Call, UncheckedExtrinsic, Address};
+    use node_template_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
     use codec::Encode;
     use sp_core::{
         crypto::Pair as CryptoPair,

@@ -3,7 +3,7 @@ use node_template_runtime::{
 	AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature, StakerStatus,
 	SessionConfig, StakingConfig, opaque::SessionKeys, Balance,
-	currency::DOLLARS, ImOnlineConfig, DemocracyConfig, ElectionsConfig,
+	constants::currency::DOLLARS, ImOnlineConfig, ElectionsConfig,
 	TechnicalCommitteeConfig, CouncilConfig,
 };
 use sp_consensus_babe::AuthorityId as BabeId;
@@ -231,26 +231,26 @@ fn public_testnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 	let num_endowed_accounts = endowed_accounts.len();
 
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		frame_system: SystemConfig {
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		pallet_balances: BalancesConfig {
 			balances: endowed_accounts.iter()
 				.map(|k: &AccountId| (k.clone(), ENDOWMENT))
 				.chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
 				.collect(),
-		}),
-		pallet_babe: Some(BabeConfig {
+		},
+		pallet_babe: BabeConfig {
 			authorities: vec![],
-		}),
-		pallet_grandpa: Some(GrandpaConfig {
+		},
+		pallet_grandpa: GrandpaConfig {
 			authorities: vec![],
-		}),
-		pallet_sudo: Some(SudoConfig {
+		},
+		pallet_sudo: SudoConfig {
 			key: endowed_accounts[0].clone(),
-		}),
-		pallet_session: Some(SessionConfig {
+		},
+		pallet_session: SessionConfig {
 			keys: initial_authorities.iter().map(|x| {
 				(
 					x.0.clone(),
@@ -258,8 +258,8 @@ fn public_testnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 					session_keys(x.2.clone(), x.3.clone(), x.4.clone())
 				)
 			}).collect::<Vec<_>>(),
-		}),
-		pallet_staking: Some(StakingConfig {
+		},
+		pallet_staking: StakingConfig {
 			validator_count: initial_authorities.len() as u32 * 2,
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
@@ -270,28 +270,27 @@ fn public_testnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			.. Default::default()
-		}),
-		pallet_im_online: Some(ImOnlineConfig {	
+		},
+		pallet_im_online: ImOnlineConfig {
 			keys: vec![],	
-		}),	
-		pallet_democracy: Some(DemocracyConfig::default()),
-		pallet_elections_phragmen: Some(ElectionsConfig {	
+		},
+		pallet_elections_phragmen: ElectionsConfig {
 			members: endowed_accounts.iter()	
 						.take((num_endowed_accounts + 1) / 2)	
 						.cloned()	
 						.map(|member| (member, STASH))	
 						.collect(),	
-		}),	
-		pallet_collective_Instance1: Some(CouncilConfig::default()),	
-		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {	
+		},
+		pallet_collective_Instance1: CouncilConfig::default(),
+		pallet_collective_Instance2: TechnicalCommitteeConfig {
 			members: endowed_accounts.iter()	
 						.take((num_endowed_accounts + 1) / 2)	
 						.cloned()	
 						.collect(),	
 			phantom: Default::default(),	
-		}),
-		pallet_membership_Instance1: Some(Default::default()),	
-		pallet_treasury: Some(Default::default()),
+		},
+		pallet_membership_Instance1: Default::default(),
+		pallet_treasury: Default::default(),
 	}
 }
 
@@ -321,26 +320,26 @@ fn testnet_genesis(
 	const STASH: Balance = 100 * DOLLARS;
 
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		frame_system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		pallet_balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
 			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
-		}),
-		pallet_babe: Some(BabeConfig {
+		},
+		pallet_babe: BabeConfig {
 			authorities: vec![],
-		}),
-		pallet_grandpa: Some(GrandpaConfig {
+		},
+		pallet_grandpa: GrandpaConfig {
 			authorities: vec![],
-		}),
-		pallet_sudo: Some(SudoConfig {
+		},
+		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
-		}),
-		pallet_session: Some(SessionConfig {
+		},
+		pallet_session: SessionConfig {
 			keys: initial_authorities.iter().map(|x| {
 				(x.0.clone(), x.0.clone(), session_keys(
 					x.2.clone(),
@@ -348,8 +347,8 @@ fn testnet_genesis(
 					x.4.clone(),
 				))
 			}).collect::<Vec<_>>(),
-		}),
-		pallet_staking: Some(StakingConfig {
+		},
+		pallet_staking: StakingConfig {
 			validator_count: initial_authorities.len() as u32 * 2,
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities.iter().map(|x| {
@@ -358,27 +357,26 @@ fn testnet_genesis(
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			slash_reward_fraction: Perbill::from_percent(10),
 			.. Default::default()
-		}),
-		pallet_im_online: Some(ImOnlineConfig {
+		},
+		pallet_im_online: ImOnlineConfig {
 			keys: vec![],
-		}),
-		pallet_treasury: Some(Default::default()),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
-		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+		},
+		pallet_treasury: Default::default(),
+		pallet_collective_Instance1: CouncilConfig::default(),
+		pallet_collective_Instance2: TechnicalCommitteeConfig {
 			members: endowed_accounts.iter()
 						.take((num_endowed_accounts + 1) / 2)
 						.cloned()
 						.collect(),
 			phantom: Default::default(),
-		}),
-		pallet_membership_Instance1: Some(Default::default()),
-		pallet_democracy: Some(DemocracyConfig::default()),
-		pallet_elections_phragmen: Some(ElectionsConfig {
+		},
+		pallet_membership_Instance1: Default::default(),
+		pallet_elections_phragmen: ElectionsConfig {
 			members: endowed_accounts.iter()
 						.take((num_endowed_accounts + 1) / 2)
 						.cloned()
 						.map(|member| (member, STASH))
 						.collect(),
-		}),
+		},
 	}
 }
