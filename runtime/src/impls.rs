@@ -17,10 +17,12 @@
 
 //! Some configurable implementations as associated type for the substrate runtime.
 
-use frame_support::traits::{OnUnbalanced, Currency};
-use crate::{Balances, Authorship, NegativeImbalance};
+use frame_support::traits::{Currency, OnUnbalanced};
+
+use crate::{Authorship, Balances, NegativeImbalance};
 
 pub struct Author;
+
 impl OnUnbalanced<NegativeImbalance> for Author {
     fn on_nonzero_unbalanced(amount: NegativeImbalance) {
         Balances::resolve_creating(&Authorship::author(), amount);
@@ -29,16 +31,16 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 
 #[cfg(test)]
 mod multiplier_tests {
-    use sp_runtime::{assert_eq_error_rate, FixedPointNumber, traits::{Convert, One, Zero}};
+    use frame_support::weights::{DispatchClass, Weight, WeightToFeePolynomial};
     use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+    use sp_runtime::{assert_eq_error_rate, FixedPointNumber, traits::{Convert, One, Zero}};
 
     use crate::{
-        constants::{currency::*, time::*},
-        TransactionPayment, Runtime, TargetBlockFullness,
-        AdjustmentVariable, System, MinimumMultiplier,
-        RuntimeBlockWeights as BlockWeights,
+        AdjustmentVariable,
+        constants::{currency::*, time::*}, MinimumMultiplier, Runtime,
+        RuntimeBlockWeights as BlockWeights, System, TargetBlockFullness,
+        TransactionPayment,
     };
-    use frame_support::weights::{Weight, WeightToFeePolynomial, DispatchClass};
 
     fn max_normal() -> Weight {
         BlockWeights::get().get(DispatchClass::Normal).max_total
@@ -64,7 +66,7 @@ mod multiplier_tests {
     }
 
     // update based on reference impl.
-    fn truth_value_update(block_weight: Weight, previous: Multiplier) -> Multiplier  {
+    fn truth_value_update(block_weight: Weight, previous: Multiplier) -> Multiplier {
         let accuracy = Multiplier::accuracy() as f64;
         let previous_float = previous.into_inner() as f64 / accuracy;
         // bump if it is zero.
@@ -81,8 +83,8 @@ mod multiplier_tests {
         // Current saturation in terms of weight
         let s = block_weight;
 
-        let t1 = v * (s/m - ss/m);
-        let t2 = v.powi(2) * (s/m - ss/m).powi(2) / 2.0;
+        let t1 = v * (s / m - ss / m);
+        let t2 = v.powi(2) * (s / m - ss / m).powi(2) / 2.0;
         let next_float = previous_float * (1.0 + t1 + t2);
         Multiplier::from_float(next_float)
     }
@@ -242,7 +244,6 @@ mod multiplier_tests {
 			);
             // Light block. Multiplier is reduced a little.
             assert!(next < fm);
-
         });
         run_with_system_weight(target(), || {
             let next = runtime_multiplier_update(fm);

@@ -2,7 +2,8 @@
 
   <h1><code>substrate-stencil</code></h1>
 
-  <strong>A template for kick starting a Rust and Blockchain project using <a href="https://github.com/paritytech/substrate">Substrate</a>.</strong>
+<strong>A template for kick starting a Rust and Blockchain project
+using <a href="https://github.com/paritytech/substrate">Substrate</a>.</strong>
 
   <h3>
     <a href="https://substrate.dev/">Docs</a>
@@ -14,7 +15,8 @@
 
 ## Features
 
-This template includes the minimum required components to start a PoS testnet, inspired by [substrate-node-template](https://github.com/substrate-developer-hub/substrate-node-template).
+This template includes the minimum required components to start a PoS testnet, inspired
+by [substrate-node-template](https://github.com/substrate-developer-hub/substrate-node-template).
 
 * Consensus related pallets: Babe & GRANDPA
 * Staking related pallets: staking, session, authorship, im-online, offences, utility
@@ -35,7 +37,6 @@ Install [cargo generate](https://github.com/ashleygwilliams/cargo-generate):
 ```
 cargo install cargo-generate
 ```
-
 
 ### 🛠️ Generate & Build
 
@@ -67,17 +68,23 @@ Start a development chain with:
 ./target/release/my-project --dev
 ```
 
-Detailed logs may be shown by running the node with the following environment variables set: `RUST_LOG=debug RUST_BACKTRACE=1 cargo run -- --dev`.
+Detailed logs may be shown by running the node with the following environment variables
+set: `RUST_LOG=debug RUST_BACKTRACE=1 cargo run -- --dev`.
 
 ### 🕸️ Multi-Node Local Testnet
 
-If you want to see the multi-node consensus algorithm in action locally, then you can create a local testnet with two validator nodes for Alice and Bob, who are the initial authorities of the genesis chain that have been endowed with testnet units.
+If you want to see the multi-node consensus algorithm in action locally, then you can create a local testnet with two
+validator nodes for Alice and Bob, who are the initial authorities of the genesis chain that have been endowed with
+testnet units.
 
-Optionally, give each node a name and expose them so they are listed on the Polkadot [telemetry site](https://telemetry.polkadot.io/#/Local%20Testnet).
+Optionally, give each node a name and expose them so they are listed on the
+Polkadot [telemetry site](https://telemetry.polkadot.io/#/Local%20Testnet).
 
 You'll need two terminal windows open.
 
-We'll start Alice's substrate node first on default TCP port 30333 with her chain database stored locally at `/tmp/alice`. The bootnode ID of her node is `QmRpheLN4JWdAnY7HGJfWFNbfkQCb6tFf4vvA6hgjMZKrR`, which is generated from the `--node-key` value that we specify below:
+We'll start Alice's substrate node first on default TCP port 30333 with her chain database stored locally
+at `/tmp/alice`. The bootnode ID of her node is `QmRpheLN4JWdAnY7HGJfWFNbfkQCb6tFf4vvA6hgjMZKrR`, which is generated
+from the `--node-key` value that we specify below:
 
 ```bash
 cargo run -- \
@@ -89,7 +96,9 @@ cargo run -- \
   --validator
 ```
 
-In the second terminal, we'll start Bob's substrate node on a different TCP port of 30334, and with his chain database stored locally at `/tmp/bob`. We'll specify a value for the `--bootnodes` option that will connect his node to Alice's bootnode ID on TCP port 30333:
+In the second terminal, we'll start Bob's substrate node on a different TCP port of 30334, and with his chain database
+stored locally at `/tmp/bob`. We'll specify a value for the `--bootnodes` option that will connect his node to Alice's
+bootnode ID on TCP port 30333:
 
 ```bash
 cargo run -- \
@@ -106,7 +115,8 @@ Additional CLI usage options are available and may be shown by running `cargo ru
 
 ### 🐳 Run in Docker
 
-First, install [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
+First, install [Docker](https://docs.docker.com/get-docker/)
+and [Docker Compose](https://docs.docker.com/compose/install/).
 
 Then run the following command to start a single node development chain.
 
@@ -114,7 +124,9 @@ Then run the following command to start a single node development chain.
 ./scripts/docker_run.sh
 ```
 
-This command will firstly compile your code, and then start a local development network. You can also replace the default command (`cargo build --release && ./target/release/node-template --dev --ws-external`) by appending your own. A few useful ones are as follow.
+This command will firstly compile your code, and then start a local development network. You can also replace the
+default command (`cargo build --release && ./target/release/node-template --dev --ws-external`) by appending your own. A
+few useful ones are as follow.
 
 ```bash
 # Run Substrate node without re-compiling
@@ -131,7 +143,8 @@ This command will firstly compile your code, and then start a local development 
 
 * Modify the genesis config in chain_spec.rs
 * Build spec, `./target/release/<your-project-name> build-spec --chain staging > my-staging.json`
-* Change original spec to encoded raw spec, `./target/release/<your-project-name> build-spec --chain=my-staging.json --raw > my-staging-raw.json`
+* Change original spec to encoded raw
+  spec, `./target/release/<your-project-name> build-spec --chain=my-staging.json --raw > my-staging-raw.json`
 * Start your bootnodes, node key can be generate with command `./target/release/substrate key generate-node-key`.
   ```shell
   ./target/release/<your-project-name> \
