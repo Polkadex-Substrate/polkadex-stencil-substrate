@@ -23,7 +23,7 @@
 use std::sync::Arc;
 use sc_consensus_babe;
 use node_primitives::Block;
-use node_runtime::RuntimeApi;
+use node_template_runtime::RuntimeApi;
 use sc_service::{
     config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager,
 };
@@ -31,7 +31,19 @@ use sc_network::{Event, NetworkService};
 use sp_runtime::traits::Block as BlockT;
 use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use node_executor::Executor;
+use crate::rpc as node_rpc;
+pub use sc_executor::NativeExecutor;
+use sc_executor::native_executor_instance;
+
+// Declare an instance of the native executor named `Executor`. Include the wasm binary as the
+// equivalent wasm code.
+native_executor_instance!(
+	pub Executor,
+	node_template_runtime::api::dispatch,
+	node_template_runtime::native_version,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
+
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_consensus_babe::SlotProportion;
 
@@ -204,6 +216,7 @@ pub struct NewFullBase {
     pub task_manager: TaskManager,
     pub client: Arc<FullClient>,
     pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+    pub network_status_sinks: sc_service::NetworkStatusSinks<Block>,
     pub transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
 }
 
@@ -241,7 +254,7 @@ pub fn new_full_base(
         )
     );
 
-    let (network, system_rpc_tx, network_starter) =
+    let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -278,6 +291,7 @@ pub fn new_full_base(
             task_manager: &mut task_manager,
             on_demand: None,
             remote_blockchain: None,
+            network_status_sinks: network_status_sinks.clone(),
             system_rpc_tx,
             telemetry: telemetry.as_mut(),
         },
@@ -379,7 +393,7 @@ pub fn new_full_base(
         name: Some(name),
         observer_enabled: false,
         keystore,
-        local_role: role,
+        is_authority: role.is_authority(),
         telemetry: telemetry.as_ref().map(|x| x.handle()),
     };
 
@@ -413,6 +427,7 @@ pub fn new_full_base(
         task_manager,
         client,
         network,
+        network_status_sinks,
         transaction_pool,
     })
 }
@@ -475,7 +490,7 @@ pub fn new_light_base(
         on_demand.clone(),
     ));
 
-    let (grandpa_block_import, grandpa_link) = grandpa::block_import(
+    let (grandpa_block_import, _) = grandpa::block_import(
         client.clone(),
         &(client.clone() as Arc<_>),
         select_chain.clone(),
@@ -516,7 +531,7 @@ pub fn new_light_base(
         telemetry.as_ref().map(|x| x.handle()),
     )?;
 
-    let (network, system_rpc_tx, network_starter) =
+    let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -526,33 +541,11 @@ pub fn new_light_base(
             on_demand: Some(on_demand.clone()),
             block_announce_validator_builder: None,
         })?;
-
-    let enable_grandpa = !config.disable_grandpa;
-    if enable_grandpa {
-        let name = config.network.node_name.clone();
-
-        let config = grandpa::Config {
-            gossip_duration: std::time::Duration::from_millis(333),
-            justification_period: 512,
-            name: Some(name),
-            observer_enabled: false,
-            keystore: None,
-            local_role: config.role.clone(),
-            telemetry: telemetry.as_ref().map(|x| x.handle()),
-        };
-
-        task_manager.spawn_handle().spawn_blocking(
-            "grandpa-observer",
-            grandpa::run_grandpa_observer(config, grandpa_link, network.clone())?,
-        );
-    }
+    network_starter.start_network();
 
     if config.offchain_worker.enabled {
         sc_service::build_offchain_workers(
-            &config,
-            task_manager.spawn_handle(),
-            client.clone(),
-            network.clone(),
+            &config, task_manager.spawn_handle(), client.clone(), network.clone(),
         );
     }
 
@@ -573,13 +566,12 @@ pub fn new_light_base(
             client: client.clone(),
             transaction_pool: transaction_pool.clone(),
             keystore: keystore_container.sync_keystore(),
-            config, backend, system_rpc_tx,
+            config, backend, network_status_sinks, system_rpc_tx,
             network: network.clone(),
             task_manager: &mut task_manager,
             telemetry: telemetry.as_mut(),
         })?;
 
-    network_starter.start_network();
     Ok((
         task_manager,
         rpc_handlers,
@@ -607,8 +599,8 @@ mod tests {
         Environment, Proposer, BlockImportParams, BlockOrigin, ForkChoiceStrategy, BlockImport,
     };
     use node_primitives::{Block, DigestItem, Signature};
-    use node_runtime::{BalancesCall, Call, UncheckedExtrinsic, Address};
-    use node_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
+    use node_template_runtime::{BalancesCall, Call, UncheckedExtrinsic, Address};
+    use node_template_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
     use codec::Encode;
     use sp_core::{
         crypto::Pair as CryptoPair,
