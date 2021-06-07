@@ -24,7 +24,7 @@ use serde::{Serialize, Deserialize};
 use node_template_runtime::{
     AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
     DemocracyConfig, GrandpaConfig, ImOnlineConfig, SessionConfig, SessionKeys, StakerStatus,
-    StakingConfig, ElectionsConfig, IndicesConfig, SocietyConfig, SudoConfig, SystemConfig,
+    StakingConfig, ElectionsConfig, IndicesConfig, SudoConfig, SystemConfig,
     TechnicalCommitteeConfig, wasm_binary_unwrap, MAX_NOMINATIONS,
 };
 use node_primitives::Block;
@@ -331,14 +331,6 @@ pub fn testnet_genesis(
         },
         pallet_membership_Instance1: Default::default(),
         pallet_treasury: Default::default(),
-        pallet_society: SocietyConfig {
-            members: endowed_accounts.iter()
-                .take((num_endowed_accounts + 1) / 2)
-                .cloned()
-                .collect(),
-            pot: 0,
-            max_members: 999,
-        },
         pallet_vesting: Default::default(),
         pallet_gilt: Default::default(),
     }
