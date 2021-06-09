@@ -1,0 +1,1 @@
+./target/release/polkadex-stencil --validator --chain=customSpecRaw.json -lgrandpa=trace --base-path ./validator02/ --rpc-port=9945 --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t

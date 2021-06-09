@@ -1,0 +1,1 @@
+./target/release/polkadex-stencil --validator --ws-port=9945 --rpc-port=9946 --chain=customSpecRaw.json --rpc-methods Unsafe -lbabe=trace --base-path ./validator01/ --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWRozCnsH7zCYiNVpCRqgaoxukPdYxqaPQNs9rdDMDeN4t

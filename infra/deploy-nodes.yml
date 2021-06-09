@@ -1,0 +1,54 @@
+- hosts: thea_node
+#  serial: 1
+  become: yes
+  order: sorted
+  vars:
+    bootnode_ip: "13.127.112.104"
+    bootnode_peer_id: "12D3KooWAnULHt1MReM235fgDR17u12rvuCzGbe92UXcSEwZSvnN"
+    bootnodes: "/ip4/{{ bootnode_ip }}/tcp/30333/p2p/{{ bootnode_peer_id }}"
+#    /ip4/13.127.112.104/tcp/30333/p2p/12D3KooWAnULHt1MReM235fgDR17u12rvuCzGbe92UXcSEwZSvnN
+
+  tasks:
+    - name: Basic preparation
+      import_tasks: base.yml
+
+    - name: Set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Download polkadex-thea-node chainspec
+      get_url:
+        url: https://polkadex-thea.s3.ap-south-1.amazonaws.com/customSpecRaw.json
+        dest: /etc/customSpecRaw.json
+
+    - name: Download polkadex-thea-node
+      get_url:
+        url: https://polkadex-thea.s3.ap-south-1.amazonaws.com/polkadex-stencil
+        dest: /usr/local/bin/polkadex-stencil
+        mode: "0755"
+
+    - name: Create service file
+      template:
+        src: templates/node.j2
+        dest: /etc/systemd/system/polkadex-stencil.service
+        owner: root
+        group: root
+        mode: 0644
+#      notify: Restart polkadex-thea-node
+
+    - name: Make sure service is running
+      systemd:
+        name: polkadex-stencil
+        state: started
+        enabled: yes
+
+    - name: Pause for 10 seconds
+      pause:
+        seconds: 10
+#
+#  handlers:
+#    - name: Restart polkadex-thea-node
+#      systemd:
+#        name: polkadex-thea-node
+#        state: restarted
+#        daemon_reload: yes

@@ -1,0 +1,92 @@
+# This file is repurposed from snowfork team's ansible file for polkadot-ethereum project
+- hosts: localhost
+  gather_facts: False
+  vars:
+    polkadex_thea_nodes:
+      - name: polkadex-node
+        zone: aps1-az1
+    keypair: polkadex-infra-keypair
+    image_id: ami-0c1a7f89451184c8b # Ubuntu 20.04 LTS
+    instance_type: t3a.medium
+    instance_role: PolkadexTheaNodeEC2Instance
+
+  tasks:
+    - name: Create base security group
+      amazon.aws.ec2_group:
+        name: thea-base-sg
+        description: Node Security Group
+        region: ap-south-1
+        rules:
+          - proto: icmp
+            from_port: -1
+            to_port: -1
+            rule_desc: ICMP Echo Request
+          - proto: tcp
+            ports: 22
+            cidr_ip: 0.0.0.0/0
+            rule_desc: SSH
+        tags:
+          Environment: thea
+      register: thea_base_sg
+
+    - name: Create substrate security group
+      amazon.aws.ec2_group:
+        name: thea-substrate-sg
+        description: Node Security Group
+        region: ap-south-1
+        rules:
+          - proto: tcp
+            ports: 30333
+            cidr_ip: 0.0.0.0/0
+            rule_desc: Substrate P2P
+          - proto: tcp
+            ports: 9944
+            cidr_ip: 0.0.0.0/0
+            rule_desc: Substrate RPC
+        tags:
+          Environment: thea
+      register: thea_substrate_sg
+
+    - name: Create substrate SSL security group
+      amazon.aws.ec2_group:
+        name: thea-substrate-ssl-sg
+        description: Node Security Group
+        region: ap-south-1
+        rules:
+          - proto: tcp
+            ports: 80
+            cidr_ip: 0.0.0.0/0
+            rule_desc: Certbot
+          - proto: tcp
+            ports: 443
+            cidr_ip: 0.0.0.0/0
+            rule_desc: Substrate SSL RPC
+        tags:
+          Environment: thea
+      register: thea_substrate_ssl_sg
+
+    - name: Provision Polkadex Thea nodes
+      community.aws.ec2_instance:
+        key_name: polkadex-infra-keypair
+        image_id: "{{ image_id }}"
+        instance_type: "{{ instance_type }}"
+#        instance_role: "{{ instance_role }}"
+        security_groups:
+          - "{{ thea_base_sg.group_id }}"
+          - "{{ thea_substrate_sg.group_id }}"
+        region: ap-south-1
+        availability_zone: "{{ polkadex_thea_nodes[0].zone }}"
+        network:
+          assign_public_ip: true
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: 64
+              delete_on_termination: true
+        ebs_optimized: yes
+        wait: no
+        name: "polkadex-node-{{ item }}"
+        tags:
+          Environment: thea
+          Role: thea-node
+      with_sequence: start=0 end=1 # Change 'end' value to increase the number of nodes to provision and deploy

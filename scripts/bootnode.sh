@@ -1,0 +1,1 @@
+./target/release/polkadex-stencil --validator --ws-port=9943 --rpc-port=9944 --chain=customSpecRaw.json --rpc-methods Unsafe --base-path ./bootnode/ --node-key=1f64f01767da8258fcb986bd68d6dff93dfcd49d0fc753cea27cf37ce91c3684
