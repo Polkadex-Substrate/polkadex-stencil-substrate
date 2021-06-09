@@ -3,10 +3,10 @@
   become: yes
   order: sorted
   vars:
-    bootnode_ip: "13.127.112.104"
-    bootnode_peer_id: "12D3KooWJDGcgjjJ5EK4pPDT3mK2JQobYKh94Hs6BjQ546qbTsco"
+    bootnode_ip: "65.1.128.149"
+    bootnode_peer_id: "12D3KooWNbuHUdTusGid8HY9N4K6GYh6XrmwmfbCAHnSjNjQhYQj"
     bootnodes: "/ip4/{{ bootnode_ip }}/tcp/30333/p2p/{{ bootnode_peer_id }}"
-#    /ip4/13.127.112.104/tcp/30333/p2p/12D3KooWJDGcgjjJ5EK4pPDT3mK2JQobYKh94Hs6BjQ546qbTsco
+#    /ip4/65.1.128.149/tcp/30333/p2p/12D3KooWNbuHUdTusGid8HY9N4K6GYh6XrmwmfbCAHnSjNjQhYQj
 
   tasks:
     - name: Basic preparation

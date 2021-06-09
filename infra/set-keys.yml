@@ -5,10 +5,10 @@
     - name: Set hostname
       hostname:
         name: "{{ inventory_hostname }}"
-    - name: Copy Aura Keys
+    - name: Copy Babe Keys
       template:
-        src: "templates/{{ inventory_hostname}}-aura.json"
-        dest: "/home/ubuntu/{{ inventory_hostname }}-aura.json"
+        src: "templates/{{ inventory_hostname}}-babe.json"
+        dest: "/home/ubuntu/{{ inventory_hostname }}-babe.json"
         owner: ubuntu
         group: ubuntu
     - name: Copy Grandpa Keys
@@ -17,9 +17,9 @@
         dest: "/home/ubuntu/{{ inventory_hostname }}-gran.json"
         owner: ubuntu
         group: ubuntu
-    - name: Set Aura Keys
+    - name: Set Babe Keys
       shell:
-        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-aura.json\" "
+        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-babe.json\" "
       register: aura_output
 
     - name: Print Aura RPC output

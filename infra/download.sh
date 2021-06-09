@@ -1,6 +1,6 @@
 wget https://polkadex-thea.s3.ap-south-1.amazonaws.com/customSpecRaw.json
-wget https://polkadex-thea.s3.ap-south-1.amazonaws.com/polkadex-thea-node
-chmod +x polkadex-thea-node
+wget https://polkadex-thea.s3.ap-south-1.amazonaws.com/polkadex-stencil
+chmod +x polkadex-stencil
 
 
 
@@ -9,7 +9,7 @@ chmod +x polkadex-thea-node
     --chain customSpecRaw.json \
     --rpc-cors=all \
     --validator \
-    --bootnodes /ip4/3.6.116.184/tcp/30333/p2p/12D3KooWJV4JKrVfoNue5MXfuZAXi9xou7xvyBkS6MuvfwqiJbes \
+    --bootnodes /ip4/65.1.128.149/tcp/30333/p2p/12D3KooWNbuHUdTusGid8HY9N4K6GYh6XrmwmfbCAHnSjNjQhYQj \
     --rpc-port=9945 \
     --in-peers=50 \
     --out-peers=50 \

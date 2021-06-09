@@ -396,8 +396,7 @@ pub fn local_testnet_config() -> ChainSpec {
         ChainType::Local,
         local_testnet_genesis,
         vec![],
-        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-            .expect("Staging telemetry url is valid; qed")),
+        None,
         None,
         None,
         Default::default(),
