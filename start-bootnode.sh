@@ -1,1 +1,1 @@
-./target/release/polkadex-stencil --chain=customSpecRaw.json
+./target/release/polkadex-stencil --chain=customSpecRaw.json --node-key=7d3eda779d220094160bbb51c78fad443eb4229b3072eaa87e231deb0ae247a5

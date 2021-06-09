@@ -4,9 +4,9 @@
   order: sorted
   vars:
     bootnode_ip: "13.127.112.104"
-    bootnode_peer_id: "12D3KooWAnULHt1MReM235fgDR17u12rvuCzGbe92UXcSEwZSvnN"
+    bootnode_peer_id: "12D3KooWJDGcgjjJ5EK4pPDT3mK2JQobYKh94Hs6BjQ546qbTsco"
     bootnodes: "/ip4/{{ bootnode_ip }}/tcp/30333/p2p/{{ bootnode_peer_id }}"
-#    /ip4/13.127.112.104/tcp/30333/p2p/12D3KooWAnULHt1MReM235fgDR17u12rvuCzGbe92UXcSEwZSvnN
+#    /ip4/13.127.112.104/tcp/30333/p2p/12D3KooWJDGcgjjJ5EK4pPDT3mK2JQobYKh94Hs6BjQ546qbTsco
 
   tasks:
     - name: Basic preparation

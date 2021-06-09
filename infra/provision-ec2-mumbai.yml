@@ -89,4 +89,4 @@
         tags:
           Environment: thea
           Role: thea-node
-      with_sequence: start=0 end=1 # Change 'end' value to increase the number of nodes to provision and deploy
+      with_sequence: start=1 end=2 # Change 'end' value to increase the number of nodes to provision and deploy
