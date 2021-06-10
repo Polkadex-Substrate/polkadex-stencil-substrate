@@ -34,14 +34,34 @@ for (let i = 1; i < 101; i++) {
         }
     });
     let iam_online_pair = keyring_babe.addFromMnemonic(mnemonic + "//" + i + "//im_online", {type: 'sr25519'});
+    json_file.params = ["imon", mnemonic + "//" + i + "//im_online", "0x" + Buffer.from(iam_online_pair.publicKey).toString('hex')];
+    fs.writeFile('../templates/polkadex-node-' + i + '-imon.json', JSON.stringify(json_file), {flag: 'w+'}, err => {
+        if (err != null) {
+            console.log(err);
+        }
+    });
     let auth_discovery = keyring_babe.addFromMnemonic(mnemonic + "//" + i + "//authority_discovery", {type: 'sr25519'});
+    json_file.params = ["audi", mnemonic + "//" + i + "//authority_discovery", "0x" + Buffer.from(auth_discovery.publicKey).toString('hex')];
+    fs.writeFile('../templates/polkadex-node-' + i + '-audi.json', JSON.stringify(json_file), {flag: 'w+'}, err => {
+        if (err != null) {
+            console.log(err);
+        }
+    });
 
+    let thea_pair = keyring_babe.addFromMnemonic(mnemonic + "//" + i + "//thea", {type: 'sr25519'});
+    json_file.params = ["thea", mnemonic + "//" + i + "//thea", "0x" + Buffer.from(thea_pair.publicKey).toString('hex')];
+    fs.writeFile('../templates/polkadex-node-' + i + '-thea.json', JSON.stringify(json_file), {flag: 'w+'}, err => {
+        if (err != null) {
+            console.log(err);
+        }
+    });
     let rust_chain_spec_code = "(" + rust_code(stash_pair.publicKey)
         + rust_code(controller_pair.publicKey)
         + rust_code_unchecked(gran_pair.publicKey)
         + rust_code_unchecked(babe_pair.publicKey)
         + rust_code_unchecked(iam_online_pair.publicKey)
-        + rust_code_unchecked(auth_discovery.publicKey) + "),";
+        + rust_code_unchecked(auth_discovery.publicKey)
+        + rust_code_unchecked(thea_pair.publicKey) + "),";
 
     console.log(rust_chain_spec_code)
 }

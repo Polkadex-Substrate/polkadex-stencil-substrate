@@ -12,8 +12,6 @@ ExecStart=/usr/local/bin/polkadex-stencil \
     --validator \
     --bootnodes {{ bootnodes }} \
     --rpc-port=9945 \
-    --in-peers=50 \
-    --out-peers=50 \
     --telemetry-url 'wss://telemetry.polkadot.io/submit/ 0' \
     --name={{ inventory_hostname }} \
     -lthea=trace

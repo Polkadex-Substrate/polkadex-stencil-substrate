@@ -1,0 +1,44 @@
+[package]
+name = "thea-client"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+hex = "0.4"
+log = "0.4"
+parking_lot = "0.11"
+thiserror = "1.0"
+
+codec = { version = "2.0.0", package = "parity-scale-codec", features = ["derive"] }
+prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "master" }
+
+sp-api = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sp-application-crypto = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sp-arithmetic = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sp-blockchain = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sp-consensus = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
+sp-core = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sp-keystore = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
+sp-runtime = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sp-utils = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+
+sc-client-api = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sc-keystore = { version = "3.0.0", git = "https://github.com/paritytech/substrate" }
+sc-network = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
+sc-network-gossip = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
+
+# Threshold ECDSA
+multi-party-ecdsa = { git = "https://github.com/Polkadex-Substrate/multi-party-ecdsa.git" }
+curv = { git = "https://github.com/Polkadex-Substrate/curv.git", default-features = false, version = "0.7" }
+round-based = { version = "0.1.0", features = [] }
+paillier = { git = "https://github.com/Polkadex-Substrate/rust-paillier" }
+zk-paillier = { git = "https://github.com/Polkadex-Substrate/zk-paillier" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.64"
+thea-primitives = { path = "../thea-primitives" }
+
+[dev-dependencies]
+round-based = { version = "0.1.0", features = ["dev"] }

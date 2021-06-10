@@ -21,19 +21,24 @@
 //! Service implementation. Specialized wrapper over substrate service.
 
 use std::sync::Arc;
+
+use futures::prelude::*;
+use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
-use node_primitives::Block;
-use node_template_runtime::RuntimeApi;
+use sc_consensus_babe::SlotProportion;
+use sc_executor::native_executor_instance;
+pub use sc_executor::NativeExecutor;
+use sc_network::{Event, NetworkService};
 use sc_service::{
     config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager,
 };
-use sc_network::{Event, NetworkService};
+use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_runtime::traits::Block as BlockT;
-use futures::prelude::*;
-use sc_client_api::{ExecutorProvider, RemoteBackend};
+
+use node_primitives::Block;
+use node_template_runtime::RuntimeApi;
+
 use crate::rpc as node_rpc;
-pub use sc_executor::NativeExecutor;
-use sc_executor::native_executor_instance;
 
 // Declare an instance of the native executor named `Executor`. Include the wasm binary as the
 // equivalent wasm code.
@@ -43,9 +48,6 @@ native_executor_instance!(
 	node_template_runtime::native_version,
 	frame_benchmarking::benchmarking::HostFunctions,
 );
-
-use sc_telemetry::{Telemetry, TelemetryWorker};
-use sc_consensus_babe::SlotProportion;
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -226,7 +228,7 @@ pub fn new_full_base(
     with_startup_data: impl FnOnce(
         &sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
         &sc_consensus_babe::BabeLink<Block>,
-    )
+    ),
 ) -> Result<NewFullBase, ServiceError> {
     let sc_service::PartialComponents {
         client,
@@ -243,6 +245,12 @@ pub fn new_full_base(
     let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 
     config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
+
+    // Thea Protocol
+    config
+        .network
+        .extra_sets
+        .push(thea_client::thea_peers_set_config());
 
     #[cfg(feature = "cli")]
         config.network.request_response_protocols.push(
@@ -359,10 +367,12 @@ pub fn new_full_base(
             keystore_container.keystore(),
         );
         let dht_event_stream = network.event_stream("authority-discovery")
-            .filter_map(|e| async move { match e {
-                Event::Dht(e) => Some(e),
-                _ => None,
-            }});
+            .filter_map(|e| async move {
+                match e {
+                    Event::Dht(e) => Some(e),
+                    _ => None,
+                }
+            });
         let (authority_discovery_worker, _service) = sc_authority_discovery::new_worker_and_service_with_config(
             sc_authority_discovery::WorkerConfig {
                 publish_non_global_ips: auth_disc_publish_non_global_ips,
@@ -392,7 +402,7 @@ pub fn new_full_base(
         justification_period: 512,
         name: Some(name),
         observer_enabled: false,
-        keystore,
+        keystore: keystore.clone(),
         is_authority: role.is_authority(),
         telemetry: telemetry.as_ref().map(|x| x.handle()),
     };
@@ -410,7 +420,7 @@ pub fn new_full_base(
             network: network.clone(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
             voting_rule: grandpa::VotingRulesBuilder::default().build(),
-            prometheus_registry,
+            prometheus_registry: prometheus_registry.clone(),
             shared_voter_state,
         };
 
@@ -418,7 +428,29 @@ pub fn new_full_base(
         // if it fails we take down the service with it.
         task_manager.spawn_essential_handle().spawn_blocking(
             "grandpa-voter",
-            grandpa::run_grandpa_voter(grandpa_config)?
+            grandpa::run_grandpa_voter(grandpa_config)?,
+        );
+    }
+
+    // Thea Protocol
+    if role.is_authority() && enable_grandpa {
+        let thea_params = thea_client::TheaParams {
+            client: client.clone(),
+            backend,
+            key_store: keystore,
+            network: network.clone(),
+            party_idx: 0,   // TODO: This should be changed
+            threshold: 1,   // TODO: This should be changed
+            party_count: 3, // TODO: This should be changed and must be taken from on-chain
+            prometheus_registry: prometheus_registry.clone(),
+        };
+
+        // Start the THEA bridge gadget.
+        task_manager.spawn_essential_handle().spawn_blocking(
+            "thea-worker",
+            thea_client::start_thea_gadget::<_, thea_primitives::AuthorityPair, _, _, _>(
+                thea_params,
+            ),
         );
     }
 
@@ -566,7 +598,10 @@ pub fn new_light_base(
             client: client.clone(),
             transaction_pool: transaction_pool.clone(),
             keystore: keystore_container.sync_keystore(),
-            config, backend, network_status_sinks, system_rpc_tx,
+            config,
+            backend,
+            network_status_sinks,
+            system_rpc_tx,
             network: network.clone(),
             task_manager: &mut task_manager,
             telemetry: telemetry.as_mut(),
@@ -592,36 +627,39 @@ pub fn new_light(
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, borrow::Cow, convert::TryInto};
-    use sc_consensus_babe::{CompatibleDigestItem, BabeIntermediate, INTERMEDIATE_KEY};
-    use sc_consensus_epochs::descendent_query;
-    use sp_consensus::{
-        Environment, Proposer, BlockImportParams, BlockOrigin, ForkChoiceStrategy, BlockImport,
-    };
-    use node_primitives::{Block, DigestItem, Signature};
-    use node_template_runtime::{BalancesCall, Call, UncheckedExtrinsic, Address};
-    use node_template_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
+    use std::{borrow::Cow, convert::TryInto, sync::Arc};
+
     use codec::Encode;
+    use sc_client_api::BlockBackend;
+    use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
+    use sc_consensus_epochs::descendent_query;
+    use sc_keystore::LocalKeystore;
+    use sp_consensus::{
+        BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy, Proposer,
+    };
     use sp_core::{
         crypto::Pair as CryptoPair,
         H256,
-        Public
+        Public,
     };
-    use sp_keystore::{SyncCryptoStorePtr, SyncCryptoStore};
+    use sp_inherents::InherentDataProvider;
+    use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
     use sp_runtime::{
-        generic::{BlockId, Era, Digest, SignedPayload},
+        generic::{BlockId, Digest, Era, SignedPayload},
         traits::{Block as BlockT, Header as HeaderT},
         traits::Verify,
     };
+    use sp_runtime::{key_types::BABE, RuntimeAppPublic, traits::IdentifyAccount};
     use sp_timestamp;
-    use sp_keyring::AccountKeyring;
+    use sp_transaction_pool::{ChainEvent, MaintainedTransactionPool};
+
+    use node_primitives::{Block, DigestItem, Signature};
+    use node_template_runtime::{Address, BalancesCall, Call, UncheckedExtrinsic};
+    use node_template_runtime::constants::{currency::CENTS, time::SLOT_DURATION};
     use sc_service_test::TestNetNode;
+    use sp_keyring::AccountKeyring;
+
     use crate::service::{new_full_base, new_light_base, NewFullBase};
-    use sp_runtime::{key_types::BABE, traits::IdentifyAccount, RuntimeAppPublic};
-    use sp_transaction_pool::{MaintainedTransactionPool, ChainEvent};
-    use sc_client_api::BlockBackend;
-    use sc_keystore::LocalKeystore;
-    use sp_inherents::InherentDataProvider;
 
     type AccountPublic = <Signature as Verify>::Signer;
 
@@ -653,16 +691,15 @@ mod tests {
                 let NewFullBase {
                     task_manager, client, network, transaction_pool, ..
                 } = new_full_base(config,
-                                  |
-                                      block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
-                                      babe_link: &sc_consensus_babe::BabeLink<Block>,
+                                  |block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
+                                   babe_link: &sc_consensus_babe::BabeLink<Block>,
                                   | {
                                       setup_handles = Some((block_import.clone(), babe_link.clone()));
-                                  }
+                                  },
                 )?;
 
                 let node = sc_service_test::TestNetComponents::new(
-                    task_manager, client, network, transaction_pool
+                    task_manager, client, network, transaction_pool,
                 );
                 Ok((node, setup_handles.unwrap()))
             },
@@ -715,7 +752,7 @@ mod tests {
                         &epoch,
                         &keystore,
                     ).map(|(digest, _)| digest) {
-                        break (babe_pre_digest, epoch_descriptor)
+                        break (babe_pre_digest, epoch_descriptor);
                     }
 
                     slot += 1;
@@ -801,9 +838,9 @@ mod tests {
                 let raw_payload = SignedPayload::from_raw(
                     function,
                     extra,
-                    (spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ())
+                    (spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
                 );
-                let signature = raw_payload.using_encoded(|payload|	{
+                let signature = raw_payload.using_encoded(|payload| {
                     signer.sign(payload)
                 });
                 let (function, extra, _) = raw_payload.deconstruct();
@@ -825,7 +862,7 @@ mod tests {
             crate::chain_spec::tests::integration_test_config_with_two_authorities(),
             |config| {
                 let NewFullBase { task_manager, client, network, transaction_pool, .. }
-                    = new_full_base(config,|_, _| ())?;
+                    = new_full_base(config, |_, _| ())?;
                 Ok(sc_service_test::TestNetComponents::new(task_manager, client, network, transaction_pool))
             },
             |config| {

@@ -56,6 +56,7 @@ use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use thea_primitives::{AuthorityId as TheaId, ValidatorSet};
 use sp_core::{
     crypto::KeyTypeId,
     OpaqueMetadata,
@@ -432,6 +433,7 @@ impl_opaque_keys! {
 		pub babe: Babe,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
+        pub thea: Thea,
 	}
 }
 
@@ -1073,6 +1075,11 @@ impl pallet_gilt::Config for Runtime {
     type WeightInfo = pallet_gilt::weights::SubstrateWeight<Runtime>;
 }
 
+impl thea_pallet::Config for Runtime {
+    type Event = Event;
+    type AuthorityId = TheaId;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1117,6 +1124,7 @@ construct_runtime!(
 		// Mmr: pallet_mmr::{Pallet, Storage},
 		Lottery: pallet_lottery::{Pallet, Call, Storage, Event<T>},
 		Gilt: pallet_gilt::{Pallet, Call, Storage, Event<T>, Config},
+        Thea: thea_pallet::{Pallet, Call, Storage, Config<T>, Event<T>},
 	}
 );
 
@@ -1180,6 +1188,16 @@ impl_runtime_apis! {
 			Runtime::metadata().into()
 		}
 	}
+
+    impl thea_primitives::TheaApi<Block, TheaId> for Runtime {
+        fn validator_set() -> ValidatorSet<TheaId> {
+            Thea::validator_set()
+        }
+
+        fn can_start() -> bool {
+            Thea::can_start()
+        }
+    }
 
 	impl sp_block_builder::BlockBuilder<Block> for Runtime {
 		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {

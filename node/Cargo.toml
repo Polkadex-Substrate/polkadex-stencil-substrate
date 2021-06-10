@@ -29,6 +29,8 @@ structopt = { version = "0.3.8" }
 parking_lot = "0.11.1"
 # local dependencies
 node-template-runtime = { path = '../runtime', version = '3.0.0' }
+thea-primitives = { path = "../pallets/thea-primitives" }
+thea-client = { path = "../pallets/thea-client" }
 
 # Substrate dependencies
 frame-benchmarking = { version = '3.1.0', git = "https://github.com/paritytech/substrate" }
@@ -68,7 +70,7 @@ sp-consensus = { version = '0.9.0', git = "https://github.com/paritytech/substra
 sp-consensus-babe = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
 sp-core = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sp-keystore = { version = '0.9.0', git = "https://github.com/paritytech/substrate" }
-grandpa-primitives = {package="sp-finality-grandpa", version = '3.0.0', git = "https://github.com/paritytech/substrate" }
+grandpa-primitives = { package = "sp-finality-grandpa", version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sp-inherents = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sp-timestamp = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sp-runtime = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
@@ -90,10 +92,10 @@ regex = "1"
 platforms = "1.1"
 async-std = { version = "1.6.5", features = ["attributes"] }
 soketto = "0.4.2"
-sc-keystore =  { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
+sc-keystore = { version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sc-consensus = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
-sc-consensus-babe =  { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
-sc-consensus-epochs =  { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
+sc-consensus-babe = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
+sc-consensus-epochs = { version = "0.9.0", git = "https://github.com/paritytech/substrate" }
 
 [features]
 default = []

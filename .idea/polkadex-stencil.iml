@@ -6,6 +6,9 @@
       <sourceFolder url="file://$MODULE_DIR$/pallets/template/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/runtime/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/node-primitives/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/thea-client/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/thea-pallet/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/thea-primitives/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

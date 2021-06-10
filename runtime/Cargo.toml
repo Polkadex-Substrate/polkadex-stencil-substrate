@@ -28,6 +28,8 @@ log = { version = "0.4.14", default-features = false }
 
 # local dependencies
 pallet-template = { path = '../pallets/template', default-features = false, version = '3.0.0' }
+thea-primitives = { path = "../pallets/thea-primitives", default-features = false, version = "0.1.0" }
+thea-pallet = { path = "../pallets/thea-pallet", default-features = false, version = "0.1.0" }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
@@ -73,7 +75,7 @@ pallet-election-provider-multi-phase = { version = "3.0.0", default-features = f
 pallet-authority-discovery = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-contracts-primitives = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-contracts-rpc-runtime-api = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
-node-primitives = { version= "2.0.0",default-features= false, path = "../node-primitives" }
+node-primitives = { version = "2.0.0", default-features = false, path = "../node-primitives" }
 
 sp-api = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
 sp-authority-discovery = { default-features = false, version = '3.0.0', git = "https://github.com/paritytech/substrate" }
@@ -105,6 +107,8 @@ runtime-benchmarks = [
 std = [
     'codec/std',
     'serde',
+    "thea-primitives/std",
+    "thea-pallet/std",
     'frame-executive/std',
     'frame-support/std',
     'frame-system/std',

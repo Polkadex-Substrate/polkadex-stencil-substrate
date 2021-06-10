@@ -1,0 +1,22 @@
+- hosts: thea_node
+  gather_facts: False
+  become: yes
+  vars:
+    local_db: "/home/ubuntu/.local/share/polkadex-stencil/chains/polkadex_testnet/db"
+  tasks:
+    - name: Make sure service is stopped
+      systemd:
+        name: polkadex-stencil
+        state: stopped
+    - name: Delete Polkadex Thea Node's DB
+      file:
+        path: "{{ local_db }}"
+        state: absent
+    - name: Delete Polkadex Binary
+      file:
+        path: /usr/local/bin/polkadex-stencil
+        state: absent
+    - name: Delete Polkadex CustomSpec
+      file:
+        path: /etc/customSpecRaw.json
+        state: absent
