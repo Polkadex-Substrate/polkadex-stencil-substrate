@@ -2,7 +2,7 @@
   gather_facts: False
   become: yes
   vars:
-    local_db: "/home/ubuntu/.local/share/polkadex-stencil/chains/polkadex_testnet/db"
+    local_db: "/home/ubuntu/.local/share/polkadex-stencil/chains/local_testnet/db"
   tasks:
     - name: Set hostname
       hostname:
@@ -23,6 +23,11 @@
       file:
         path: /etc/customSpecRaw.json
         state: absent
+    - name: Delete System Logs
+      file:
+        path: /var/log/
+        state: absent
+        force: yes
     - name: Download polkadex-thea-node chainspec
       get_url:
         url: https://polkadex-thea.s3.ap-south-1.amazonaws.com/customSpecRaw.json
@@ -40,62 +45,62 @@
         state: started
         enabled: yes
 
-    - name: Pause for 30 seconds
+    - name: Pause for 60 seconds
       pause:
-        seconds: 30
-    - name: Set Babe Keys
-      shell:
-        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-babe.json\" "
-      register: aura_output
-
-    - name: Print Aura RPC output
-      debug:
-        var: aura_output
-
-    - name: Set Grandpa Keys
-      shell:
-        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-gran.json\" "
-      register: gran_output
-
-    - name: Printing Grandpa RPC Output
-      debug:
-        var: gran_output
-
-    - name: Set Grandpa Keys
-      shell:
-        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-gran.json\" "
-      register: gran_output
-
-    - name: Printing Grandpa RPC Output
-      debug:
-        var: gran_output
-
-    - name: Set IAM Online Keys
-      shell:
-        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-imon.json\" "
-      register: imon_output
-
-    - name: Printing Grandpa RPC Output
-      debug:
-        var: imon_output
-
-    - name: Set Audi Keys
-      shell:
-        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-audi.json\" "
-      register: audi_output
-
-    - name: Printing Audi RPC Output
-      debug:
-        var: audi_output
-
-    - name: Set Thea Keys
-      shell:
-         "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-thea.json\" "
-      register: thea_output
-
-    - name: Printing Thea RPC Output
-      debug:
-        var: thea_output
+        seconds: 60
+#    - name: Set Babe Keys
+#      shell:
+#        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-babe.json\" "
+#      register: aura_output
+#
+#    - name: Print Aura RPC output
+#      debug:
+#        var: aura_output
+#
+#    - name: Set Grandpa Keys
+#      shell:
+#        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-gran.json\" "
+#      register: gran_output
+#
+#    - name: Printing Grandpa RPC Output
+#      debug:
+#        var: gran_output
+#
+#    - name: Set Grandpa Keys
+#      shell:
+#        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-gran.json\" "
+#      register: gran_output
+#
+#    - name: Printing Grandpa RPC Output
+#      debug:
+#        var: gran_output
+#
+#    - name: Set IAM Online Keys
+#      shell:
+#        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-imon.json\" "
+#      register: imon_output
+#
+#    - name: Printing Grandpa RPC Output
+#      debug:
+#        var: imon_output
+#
+#    - name: Set Audi Keys
+#      shell:
+#        "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-audi.json\" "
+#      register: audi_output
+#
+#    - name: Printing Audi RPC Output
+#      debug:
+#        var: audi_output
+#
+#    - name: Set Thea Keys
+#      shell:
+#         "curl http://localhost:9945 -H \"Content-Type:application/json;charset=utf-8\" -d \"@/home/ubuntu/{{ inventory_hostname }}-thea.json\" "
+#      register: thea_output
+#
+#    - name: Printing Thea RPC Output
+#      debug:
+#        var: thea_output
 
     - name: Restart polkadex-thea-node
       systemd:

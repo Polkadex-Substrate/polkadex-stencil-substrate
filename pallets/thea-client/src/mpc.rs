@@ -16,17 +16,18 @@
 
 // This is file is modified from multi-party-ecdsa Zen-Go library
 
-use curv::cryptographic_primitives::proofs::sigma_dlog::DLogProof;
-use curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
-use curv::elliptic::curves::secp256_k1::{FE, GE};
 use std::fmt;
 use std::mem::replace;
 use std::time::Duration;
+
+use curv::cryptographic_primitives::proofs::sigma_dlog::DLogProof;
+use curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
+use curv::elliptic::curves::secp256_k1::{FE, GE};
 // use log::error;
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020;
-use round_based::containers::push::{Push, PushExt};
-use round_based::containers::{self, BroadcastMsgs, MessageStore, P2PMsgs, Store, StoreErr};
 use round_based::{IsCritical, Msg, StateMachine};
+use round_based::containers::{self, BroadcastMsgs, MessageStore, P2PMsgs, Store, StoreErr};
+use round_based::containers::push::{Push, PushExt};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -91,11 +92,12 @@ impl Keygen {
     }
 
     fn gmap_queue<'a, T, F>(&'a mut self, mut f: F) -> impl Push<Msg<T>> + 'a
-    where
-        F: FnMut(T) -> M + 'a,
+        where
+            F: FnMut(T) -> M + 'a,
     {
         (&mut self.msgs_queue).gmap(move |m: Msg<T>| m.map_body(|m| ProtocolMessage(f(m))))
     }
+
 
     /// Proceeds round state if it received enough messages and if it's cheap to compute or
     /// `may_block == true`
@@ -189,6 +191,24 @@ impl Keygen {
             self.proceed_round(may_block)
         } else {
             Ok(())
+        }
+    }
+
+    /// Retrieves a list of uncorporative parties
+    /// Returns a numbers of messages yet to recieve and list of parties to send messages for the current round
+    pub fn round_blame(&self) -> (u16, Vec<u16>) {
+        let store1_blame: (u16, Vec<u16>) = self.msgs1.as_ref().map(|s| s.blame()).unwrap_or((0,vec![]));
+        let store2_blame: (u16, Vec<u16>) = self.msgs2.as_ref().map(|s| s.blame()).unwrap_or((0,vec![]));
+        let store3_blame: (u16, Vec<u16>) = self.msgs3.as_ref().map(|s| s.blame()).unwrap_or((0,vec![]));
+        let store4_blame: (u16, Vec<u16>) = self.msgs4.as_ref().map(|s| s.blame()).unwrap_or((0,vec![]));
+
+        match &self.round {
+            R::Round0(_) => (0,vec![]),
+            R::Round1(_) => store1_blame,
+            R::Round2(_) => store2_blame,
+            R::Round3(_) => store3_blame,
+            R::Round4(_) => store4_blame,
+            R::Final(_) | R::Gone => (0,vec![]),
         }
     }
 }
@@ -373,6 +393,7 @@ impl fmt::Debug for Keygen {
             Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
             None => "[None]".into(),
         };
+
         write!(
             f,
             "{{MPCRandom at round={} msgs1={} msgs2={} msgs3={} msgs4={} queue=[len={}]}}",
@@ -404,10 +425,10 @@ enum R {
 ///
 /// Hides actual messages structure so it could be changed without breaking semver policy.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProtocolMessage(M);
+pub struct ProtocolMessage(pub M);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-enum M {
+pub enum M {
     Round1(gg_2020::party_i::KeyGenBroadcastMessage1),
     Round2(gg_2020::party_i::KeyGenDecommitMessage1),
     Round3((VerifiableSS<GE>, FE)),
@@ -441,7 +462,7 @@ pub enum Error {
     HandleMessage(#[source] StoreErr),
     /// Received message which we didn't expect to receive now (e.g. message from previous round)
     #[error(
-        "didn't expect to receive message from round {msg_round} (being at round {current_round})"
+    "didn't expect to receive message from round {msg_round} (being at round {current_round})"
     )]
     ReceivedOutOfOrderMessage { current_round: u16, msg_round: u16 },
     /// [Keygen::pick_output] called twice

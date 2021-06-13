@@ -13,6 +13,7 @@ sp-application-crypto = { version = "3.0.0", default-features = false, git = "ht
 sp-core = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-std = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-authority-discovery = { version = "3.0.0", default-features = false, git = "https://github.com/paritytech/substrate" }
 
 [dev-dependencies]
 hex-literal = "0.3"

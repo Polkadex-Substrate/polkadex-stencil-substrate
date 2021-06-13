@@ -29,6 +29,7 @@ use hex::ToHex;
 use log::{debug, error, trace, warn};
 use parking_lot::Mutex;
 use round_based::{IsCritical, Msg, StateMachine};
+use sc_authority_discovery::Service;
 use sc_client_api::{Backend, FinalityNotification, FinalityNotifications};
 use sc_network_gossip::GossipEngine;
 use sp_api::BlockId;
@@ -53,6 +54,7 @@ use crate::{
     metrics::Metrics,
     mpc::ProtocolMessage, round,
 };
+use crate::communication::TheaGossipMessages;
 use crate::mpc::Keygen;
 
 pub(crate) struct WorkerParams<B, P, BE, C>
@@ -94,7 +96,7 @@ pub(crate) struct TheaWorker<B, C, BE, P>
     /// Total number of parties
     party_count: usize,
     metrics: Option<Metrics>,
-    rounds: round::Rounds<NumberFor<B>, P::Public, P::Signature>,
+    rounds: round::KeyGenRounds<NumberFor<B>, P::Public, P::Signature>,
     finality_notifications: FinalityNotifications<B>,
     /// Best block we received a GRANDPA notification for
     best_grandpa_block: NumberFor<B>,
@@ -151,7 +153,7 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
             threshold,
             party_count,
             metrics,
-            rounds: round::Rounds::new(ValidatorSet::empty()),
+            rounds: round::KeyGenRounds::new(ValidatorSet::empty()),
             finality_notifications: client.finality_notification_stream(),
             best_grandpa_block: client.info().finalized_number,
             last_thea_round: None,
@@ -235,18 +237,25 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
             return;
         }
 
-        if self.local_id().is_none() {
-            warn!(target: "thea", "Thea Authority Key is not configured in this node");
-            return;
-        }
         if self.local_party.is_some() {
             debug!(target: "thea", "Local Party Status {:?}", self.local_party.as_ref().unwrap());
+            // TODO: Send CatchUpRequest for new protocol messages
+
+            let local_party = self.local_party.as_ref().unwrap();
+            let current_round = local_party.current_round();
+            let (_, blames) = local_party.round_blame();
+            let party_idx = local_party.party_ind();
+            if !blames.is_empty() {
+                let protocol_msg = TheaGossipMessages::CatchUpRequest(current_round, blames, party_idx);
+                self.gossip_engine.lock().gossip_message(topic::<B>(), protocol_msg.encode(), false);
+            }
         }
         if let Some(public_key) = self.public_key {
             trace!(target: "thea", "Protocol Completed ==> t-ECDSA Public key: {:?}", public_key)
         }
 
         if let Some(active) = self.validator_set(&notification.header) {
+
             // Authority set change or genesis set id triggers new voting rounds
             //
             // TODO: (adoerr) Enacting a new authority set will also implicitly 'conclude'
@@ -259,15 +268,19 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
                 debug!(target: "thea", "🥩 New active validator set id: {:?}", active);
                 metric_set!(self, thea_validator_set_id, active.id);
 
-                self.rounds = round::Rounds::new(active.clone());
+                self.rounds = round::KeyGenRounds::new(active.clone());
 
                 debug!(target: "thea", "🥩 New Rounds for id: {:?}", active.id);
 
                 self.last_thea_round = Some(*notification.header.number());
 
                 self.party_count = active.validators.len();
-                self.threshold = round::threshold(self.party_count) - 1; // FIXME: Better Threshold calculation
-                // round::threshold(3) returns 3, which is not correc
+                self.threshold = round::threshold(self.party_count);
+                // round::threshold(3) returns 3, which is not correct
+                if self.local_id().is_none() {
+                    warn!(target: "thea", "Thea Authority Key is not configured in this node");
+                    return;
+                }
                 let local_id = self.local_id().expect(" Unable to get local authority id");
                 self.party_idx = active
                     .validators
@@ -293,7 +306,6 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
                 if self.local_party.is_some() {
                     debug!(target: "thea", "Local Party Created: {:?}", self.local_party);
                     let local_party = self.local_party.as_mut().unwrap();
-                    // local_party.current_round();
                     if local_party.wants_to_proceed() {
                         debug!(target: "thea", "Local Party wants to proceed");
                         match local_party.proceed() {
@@ -309,18 +321,18 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
 
                         self.gossip_validator
                             .set_protocol_status(local_party.is_finished());
+                        self.gossip_validator.set_current_round(local_party.current_round());
                     }
                     debug!(target: "thea", "Local Party gossiping {:?} protocol messages", local_party.message_queue().len());
                     let mut message_iter = local_party.message_queue().iter();
                     loop {
                         if let Some(message) = message_iter.next() {
-                            // TODO: use send_message instead which will send the message to addressed peers of
-                            // 100 validator shard and reduces the communication overhead
                             let encoded_message = serde_json::to_string(message)
                                 .expect(" Unable to serialize thea message");
+                            let encoded_thea = TheaGossipMessages::TheaMessage(encoded_message.into_bytes());
                             self.gossip_engine.lock().gossip_message(
                                 topic::<B>(),
-                                encoded_message.into_bytes(),
+                                encoded_thea.encode(),
                                 false,
                             );
                         } else {
@@ -335,14 +347,7 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
         }
     }
 
-    pub fn handle_protocol_message(&mut self, message: Msg<ProtocolMessage>) {
-        trace!(target: "thea", "🥩 Got New Protocol Message: Sender {:?}, Receiver: {:?}", message.sender, message.receiver);
-        if let Some(reciever) = message.receiver {
-            if reciever != self.party_idx as u16 {
-                warn!(target: "thea", "Rejecting message as message is not for me");
-                return;
-            }
-        }
+    pub fn handle_message(&mut self, message: Msg<ProtocolMessage>) {
         let mut status = false;
         let mut public_key: Option<GE> = None;
         if self.local_party.is_some() {
@@ -364,9 +369,11 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
                     // 100 validator shard and reduces the communication overhead
                     let encoded_message =
                         serde_json::to_string(message).expect(" Unable to serialize thea message");
+
+                    let encoded_protocol_msg = TheaGossipMessages::TheaMessage(encoded_message.into_bytes());
                     self.gossip_engine.lock().gossip_message(
                         topic::<B>(),
-                        encoded_message.into_bytes(),
+                        encoded_protocol_msg.encode(),
                         false,
                     );
                 } else {
@@ -392,9 +399,11 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
                         // 100 validator shard and reduces the communication overhead
                         let encoded_message = serde_json::to_string(message)
                             .expect(" Unable to serialize thea message");
+
+                        let encoded_protocol_msg = TheaGossipMessages::TheaMessage(encoded_message.into_bytes());
                         self.gossip_engine.lock().gossip_message(
                             topic::<B>(),
-                            encoded_message.into_bytes(),
+                            encoded_protocol_msg.encode(),
                             false,
                         );
                     } else {
@@ -404,10 +413,13 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
             }
             self.gossip_validator
                 .set_protocol_status(local_party.is_finished());
+            self.gossip_validator.set_current_round(local_party.current_round());
             status = local_party.is_finished();
             if local_party.is_finished() {
                 public_key = Some(local_party.pick_output().unwrap().unwrap().public_key());
             }
+            let current_round_blame = local_party.round_blame();
+            trace!(target: "thea", "Round: {} Msgs to recieve: {}, from: {:?}", local_party.current_round(), current_round_blame.0, current_round_blame.1);
         } else {
             error!(target: "thea", " Local Party is not initialized yet");
         }
@@ -419,23 +431,77 @@ impl<B, C, BE, P> TheaWorker<B, C, BE, P>
             self.set_public_key(public_key.unwrap())
         }
     }
+
+    pub fn handle_protocol_message(&mut self, message: TheaGossipMessages) {
+        match message {
+            TheaGossipMessages::CatchUpResponse(round, encoded_messages) => {
+                if self.local_party.is_some() {
+                    let mut local_party = self.local_party.as_mut().unwrap();
+                    let current_round = local_party.current_round();
+                    if round != current_round {
+                        warn!(target: "thea", "Received a CatchUpResponse but round miss match, current_round: {}, catchup round: {}", current_round, round);
+                        return;
+                    }
+                    let (_, mut blame) = local_party.round_blame();
+                    let mut protocol_msgs = vec![];
+                    for encoded_msg in encoded_messages {
+                        match String::from_utf8(encoded_msg) {
+                            Ok(json_str) => {
+                                let protocol_msg: Msg<ProtocolMessage> =
+                                    serde_json::from_str(&*json_str).unwrap();
+                                protocol_msgs.push(protocol_msg);
+                            }
+                            Err(e) => {
+                                error!(target: "thea", "Unable to decode protocol message: {}", e);
+                                continue;
+                            }
+                        }
+                    }
+                    blame.sort_unstable();
+
+                    for msg in protocol_msgs {
+                        if let Ok(index) = blame.binary_search(&msg.sender) {
+                            blame.remove(index);
+                            self.handle_message(msg)
+                        }
+                    }
+                }
+            }
+            TheaGossipMessages::TheaMessage(message) => {
+                match String::from_utf8(message) {
+                    Ok(json_str) => {
+                        let message: Msg<ProtocolMessage> =
+                            serde_json::from_str(&*json_str).unwrap();
+                        trace!(target: "thea", "🥩 Got New Protocol Message: Sender {:?}, Receiver: {:?}", message.sender, message.receiver);
+                        if let Some(reciever) = message.receiver {
+                            if reciever != self.party_idx as u16 {
+                                warn!(target: "thea", "Rejecting message as message is not for me");
+                                return;
+                            }
+                            self.handle_message(message)
+                        } else {
+                            self.handle_message(message)
+                        }
+                    }
+                    Err(err) => {
+                        error!(target: "thea", "Unable to convert bytes to string for incoming message: {}", err);
+                    }
+                }
+            }
+            TheaGossipMessages::CatchUpRequest(..) => {
+                warn!(target: "thea", "CatchUpRequest is not expected here!, Ignoring message");
+                return;
+            }
+        }
+    }
+
     pub(crate) async fn run(mut self) {
         let mut thea_protocol_messages = Box::pin(
             self.gossip_engine
                 .lock()
                 .messages_for(topic::<B>())
                 .filter_map(|notification| async move {
-                    match String::from_utf8(notification.message[..].to_vec()) {
-                        Ok(json_str) => {
-                            let message: Msg<ProtocolMessage> =
-                                serde_json::from_str(&*json_str).unwrap();
-                            Some(message)
-                        }
-                        Err(err) => {
-                            error!(target: "thea", "Unable to convert bytes to string for incoming message");
-                            None
-                        }
-                    }
+                    TheaGossipMessages::decode(&mut &notification.message[..]).ok()
                 }),
         );
 

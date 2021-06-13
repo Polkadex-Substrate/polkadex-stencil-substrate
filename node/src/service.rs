@@ -373,7 +373,7 @@ pub fn new_full_base(
                     _ => None,
                 }
             });
-        let (authority_discovery_worker, _service) = sc_authority_discovery::new_worker_and_service_with_config(
+        let (authority_discovery_worker, _authority_discovery_service) = sc_authority_discovery::new_worker_and_service_with_config(
             sc_authority_discovery::WorkerConfig {
                 publish_non_global_ips: auth_disc_publish_non_global_ips,
                 ..Default::default()
@@ -433,7 +433,8 @@ pub fn new_full_base(
     }
 
     // Thea Protocol
-    if role.is_authority() && enable_grandpa {
+    // TODO: we need full nodes to propagate thea messages like Grandpa messages are propagated
+    if role.is_authority() && enable_grandpa  {
         let thea_params = thea_client::TheaParams {
             client: client.clone(),
             backend,

@@ -17,21 +17,27 @@
 // This is file is modified from beefy-gadget from Parity Technologies (UK) Ltd.
 
 use std::collections::BTreeMap;
+
+use parking_lot::RwLock;
+
 use thea_primitives::{ValidatorSet, ValidatorSetId};
 
-struct RoundTracker<Id, Signature> {
+struct KeyGenTracker<Id, Signature> {
     votes: Vec<(Id, Signature)>,
 }
 
-impl<Id, Signature> Default for RoundTracker<Id, Signature> {
+impl<Id, Signature> Default for KeyGenTracker<Id, Signature> {
     fn default() -> Self {
-        RoundTracker { votes: Vec::new() }
+        KeyGenTracker {
+            votes: Vec::new(),
+        }
     }
 }
-impl<Id, Signature> RoundTracker<Id, Signature>
-where
-    Id: PartialEq,
-    Signature: PartialEq,
+
+impl<Id, Signature> KeyGenTracker<Id, Signature>
+    where
+        Id: PartialEq,
+        Signature: PartialEq,
 {
     fn is_done(&self, threshold: usize) -> bool {
         self.votes.len() >= threshold
@@ -39,31 +45,33 @@ where
 }
 
 pub fn threshold(authorities: usize) -> usize {
-    let faulty = authorities.saturating_sub(1) / 3;
-    authorities - faulty
+    // let faulty = authorities.saturating_sub(1) / 3;
+    // authorities - faulty
+    authorities.saturating_sub(1) / 3
 }
 
-pub(crate) struct Rounds<Number, Id, Signature> {
-    rounds: BTreeMap<Number, RoundTracker<Id, Signature>>,
+pub(crate) struct KeyGenRounds<Number, Id, Signature> {
+    rounds: BTreeMap<Number, KeyGenTracker<Id, Signature>>,
     validator_set: ValidatorSet<Id>,
 }
-impl<Number, Id, Signature> Rounds<Number, Id, Signature>
-where
-    Number: Ord,
+
+impl<Number, Id, Signature> KeyGenRounds<Number, Id, Signature>
+    where
+        Number: Ord,
 {
     pub(crate) fn new(validator_set: ValidatorSet<Id>) -> Self {
-        Rounds {
+        KeyGenRounds {
             rounds: BTreeMap::new(),
             validator_set,
         }
     }
 }
 
-impl<Number, Id, Signature> Rounds<Number, Id, Signature>
-where
-    Number: Ord,
-    Id: PartialEq + Clone,
-    Signature: Clone + PartialEq,
+impl<Number, Id, Signature> KeyGenRounds<Number, Id, Signature>
+    where
+        Number: Ord,
+        Id: PartialEq + Clone,
+        Signature: Clone + PartialEq,
 {
     pub(crate) fn validator_set_id(&self) -> ValidatorSetId {
         self.validator_set.id
@@ -73,30 +81,4 @@ where
         self.validator_set.validators.clone()
     }
 
-    pub(crate) fn is_done(&self, round: &Number) -> bool {
-        self.rounds
-            .get(round)
-            .map(|tracker| tracker.is_done(threshold(self.validator_set.validators.len())))
-            .unwrap_or(false)
-    }
-
-    pub(crate) fn drop(&mut self, round: &Number) -> Option<Vec<Option<Signature>>> {
-        let signatures = self.rounds.remove(round)?.votes;
-
-        Some(
-            self.validator_set
-                .validators
-                .iter()
-                .map(|authority_id| {
-                    signatures.iter().find_map(|(id, sig)| {
-                        if id == authority_id {
-                            Some(sig.clone())
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .collect(),
-        )
-    }
 }

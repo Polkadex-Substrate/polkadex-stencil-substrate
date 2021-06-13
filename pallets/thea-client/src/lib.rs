@@ -22,6 +22,7 @@ use std::sync::Arc;
 use codec::Codec;
 use log::*;
 use prometheus::Registry;
+use sc_authority_discovery::Service;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer};
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork};
 use sp_api::ProvideRuntimeApi;
@@ -31,6 +32,7 @@ use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Block;
 
 use thea_primitives::{TheaApi, ValidatorSet};
+use std::marker::PhantomData;
 
 mod gossip;
 mod metrics;
@@ -39,9 +41,11 @@ mod mpc_round;
 mod round;
 mod types;
 mod worker;
+mod communication;
 
 #[cfg(test)]
 mod test;
+
 
 pub const THEA_PROTOCOL_NAME: &str = "/polkadex/thea/1";
 
@@ -59,25 +63,25 @@ pub fn thea_peers_set_config() -> sc_network::config::NonDefaultSetConfig {
 /// of today, Rust does not allow a type alias to be used as a trait bound. Tracking
 /// issue is <https://github.com/rust-lang/rust/issues/41517>.
 pub trait Client<B, BE, P>:
-    BlockchainEvents<B> + HeaderBackend<B> + Finalizer<B, BE> + ProvideRuntimeApi<B> + Send + Sync
-where
-    B: Block,
-    BE: Backend<B>,
-    P: sp_core::Pair,
-    P::Public: AppPublic + Codec,
-    P::Signature: Clone + Codec + Debug + PartialEq + TryFrom<Vec<u8>>,
+BlockchainEvents<B> + HeaderBackend<B> + Finalizer<B, BE> + ProvideRuntimeApi<B> + Send + Sync
+    where
+        B: Block,
+        BE: Backend<B>,
+        P: sp_core::Pair,
+        P::Public: AppPublic + Codec,
+        P::Signature: Clone + Codec + Debug + PartialEq + TryFrom<Vec<u8>>,
 {
     // empty
 }
 
 impl<B, BE, P, T> Client<B, BE, P> for T
-where
-    B: Block,
-    BE: Backend<B>,
-    P: sp_core::Pair,
-    P::Public: AppPublic + Codec,
-    P::Signature: Clone + Codec + Debug + PartialEq + TryFrom<Vec<u8>>,
-    T: BlockchainEvents<B>
+    where
+        B: Block,
+        BE: Backend<B>,
+        P: sp_core::Pair,
+        P::Public: AppPublic + Codec,
+        P::Signature: Clone + Codec + Debug + PartialEq + TryFrom<Vec<u8>>,
+        T: BlockchainEvents<B>
         + HeaderBackend<B>
         + Finalizer<B, BE>
         + ProvideRuntimeApi<B>
@@ -104,22 +108,22 @@ pub struct TheaParams<BE, C, N> {
     /// Total number of parties
     pub party_count: usize,
     /// Prometheus metric registry
-    pub prometheus_registry: Option<Registry>,
+    pub prometheus_registry: Option<Registry>
 }
 
 /// Start the THEA gadget.
 ///
 /// This is a thin shim around running and awaiting a THEA worker.
 pub async fn start_thea_gadget<B, P, BE, C, N>(thea_params: TheaParams<BE, C, N>)
-where
-    B: Block,
-    P: sp_core::Pair,
-    P::Public: AppPublic + Codec,
-    P::Signature: Clone + Codec + Debug + PartialEq + TryFrom<Vec<u8>>,
-    BE: Backend<B>,
-    C: Client<B, BE, P>,
-    C::Api: TheaApi<B, P::Public>,
-    N: GossipNetwork<B> + Clone + Send + 'static,
+    where
+        B: Block,
+        P: sp_core::Pair,
+        P::Public: AppPublic + Codec,
+        P::Signature: Clone + Codec + Debug + PartialEq + TryFrom<Vec<u8>>,
+        BE: Backend<B>,
+        C: Client<B, BE, P>,
+        C::Api: TheaApi<B, P::Public>,
+        N: GossipNetwork<B> + Clone + Send + 'static,
 {
     let TheaParams {
         client,
@@ -160,7 +164,7 @@ where
         party_idx,
         threshold,
         metrics,
-        party_count,
+        party_count
     };
 
     let worker = worker::TheaWorker::<_, _, _, _>::new(worker_params);

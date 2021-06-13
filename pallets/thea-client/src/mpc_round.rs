@@ -102,6 +102,7 @@ impl Round1 {
     ) -> Store<BroadcastMsgs<gg_2020::party_i::KeyGenBroadcastMessage1>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
+
 }
 
 pub struct Round2 {

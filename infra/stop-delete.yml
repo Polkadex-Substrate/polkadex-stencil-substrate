@@ -2,7 +2,7 @@
   gather_facts: False
   become: yes
   vars:
-    local_db: "/home/ubuntu/.local/share/polkadex-stencil/chains/polkadex_testnet/db"
+    local_db: "/home/ubuntu/.local/share/polkadex-stencil/chains/local_testnet/db"
   tasks:
     - name: Make sure service is stopped
       systemd:
